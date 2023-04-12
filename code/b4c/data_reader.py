@@ -82,13 +82,5 @@ def main():
         df = b4c_parse_train_data(filepath)
         df.to_pickle('b4c_train_data_{}.p'.format(str(i)))
     
-    # lazy coding
-    file_path = './original_data/test_data_*.pik'
-    filepath_list = glob(file_path)
-    for i, filepath in enumerate(filepath_list):
-        # Example run of the python 2.7 pickle parse script
-        df = b4c_parse_test_data(filepath)
-        df.to_pickle('b4c_test_data_{}.p'.format(str(i)))
-
 if __name__ == "__main__":
     main()
