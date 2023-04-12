@@ -10,7 +10,7 @@ __author__ = ["KVELLENG"]
 __version__ = "0.0.1"
 __maintainer__ = "Koen Vellenga"
 __status__ = "Dev"
-__file__ = "./prob_dl.py"
+__file__ = "./models.py"
 
 
 
