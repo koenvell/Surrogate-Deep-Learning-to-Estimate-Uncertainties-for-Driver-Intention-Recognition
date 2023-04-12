@@ -64,59 +64,86 @@ class TrainParams:
         self.metrics = metrics
         self.callbacks = callbacks
 
+         
 class MC_LSTM(keras.layers.LSTM):
-    """MC LSTM dropout layer
-
-    Source:
-        https://datascience.stackexchange.com/questions/48030/how-to-apply-mc-dropout-to-an-lstm-network-kera
-        https://proceedings.neurips.cc/paper/2016/file/076a0c97d09cf1a0ec3e19c7f2529f2b-Paper.pdf
-
-    Args:
-        tf ([type]): [description]
-
-    Returns:
-        tf.keras.layers.LSTM: LSTM layer that uses dropout during test time
     """
-
+    A custom LSTM layer that applies dropout during test time, based on the MC Dropout technique.
+    Reference: https://proceedings.neurips.cc/paper/2016/file/076a0c97d09cf1a0ec3e19c7f2529f2b-Paper.pdf
+    
+    Args:
+        keras.layers.LSTM: The LSTM layer to extend.
+        
+    Returns:
+        keras.layers.LSTM: The modified LSTM layer that uses dropout during test time.
+    """
+    
     def call(self, inputs):
-        """[summary]
         """
-        return super().call(inputs, training=True)    
+        Overrides the call method of the parent class to enable dropout during test time.
+        
+        Args:
+            inputs: Input tensor(s).
+            
+        Returns:
+            Output tensor(s).
+        """
+        return super().call(inputs, training=True)
 
 class VariationalInference(TrainParams):
-    """Wrapper to create tf VI layers.
     """
+    A wrapper class for creating TensorFlow Variational Inference layers.
+    """
+
     def __init__(self) -> None:
+        """
+        Initializes the VariationalInference object.
+        """
         TrainParams.__init__(self)
         self.kl_div = (lambda q, p, _: tfp.distributions.kl_divergence(q, p)
                        / tf.cast(self.n_train, dtype=tf.float32))
 
-    def VI_LSTM(self, 
-                return_seq = False):
-        """VI LSTM layer implementation.
+    def VI_LSTM(self, return_seq=False):
+        """
+        Implements the Variational Inference LSTM layer.
 
         Args:
-            return_seq (Bool): returns 2d Tensor if false, 3d if true. Defaults to False.
+            return_seq (bool): Whether to return a 2D tensor (False) or a 3D tensor (True). Defaults to False.
+
+        Returns:
+            keras.layers.RNN: The VI LSTM layer.
         """
         # first initiate the RNN layer and then put the probabilistic cell inside
         return keras.layers.RNN(
-                ed.layers.LSTMCellFlipout(
-                    units=self.n_hidden,
-                    dropout=self.p_rate,
-                    kernel_regularizer=ed.regularizers.NormalKLDivergence(scale_factor=1./self.n_train),
-                    recurrent_regularizer=ed.regularizers.NormalKLDivergence(scale_factor=1./self.n_train),),
-                    return_sequences=return_seq)
+            ed.layers.LSTMCellFlipout(
+                units=self.n_hidden,
+                dropout=self.p_rate,
+                kernel_regularizer=ed.regularizers.NormalKLDivergence(scale_factor=1./self.n_train),
+                recurrent_regularizer=ed.regularizers.NormalKLDivergence(scale_factor=1./self.n_train),
+            ),
+            return_sequences=return_seq,
+        )
     
     def VI_output(self):
-        """Probabilistic output layer regularlized based on the kl_div 
         """
-        return tfp.layers.DenseFlipout(self.n_labels, 
-                                       activation="softmax",
-                                       kernel_divergence_fn=self.kl_div)
+        Implements the probabilistic output layer regularized based on the KL divergence.
+
+        Returns:
+            tfp.layers.DenseFlipout: The VI output layer.
+        """
+        return tfp.layers.DenseFlipout(
+            self.n_labels, 
+            activation="softmax",
+            kernel_divergence_fn=self.kl_div,
+        )
 
     def VI_model(self):
-        inputs = keras.layers.Input(shape=(self.n_sequence,
-                                    self.n_features))
+        """
+        Builds the full VI model.
+
+        Returns:
+            keras.Model: The full VI model.
+        """
+        inputs = keras.layers.Input(shape=(self.n_sequence, self.n_features))
         x = self.VI_LSTM(return_seq=True)(inputs)
         x = self.VI_LSTM(return_seq=False)(x)
         outputs = self.VI_output()(x)
@@ -124,13 +151,23 @@ class VariationalInference(TrainParams):
         return model
 
     def VI_LL_model(self):
+        """
+        Builds the VI model with only the last layer as an variational inference layer.
+
+        Returns:
+            keras.Model: The VI Last Layer model.
+        """
         inputs = keras.layers.Input(shape=(self.n_sequence, self.n_features))
-        x = keras.layers.LSTM(units=self.n_hidden, 
-                            dropout=self.p_rate,
-                            return_sequences=True)(inputs)
-        x = keras.layers.LSTM(units=self.n_hidden, 
-                            dropout=self.p_rate,
-                            return_sequences=False)(x)
+        x = keras.layers.LSTM(
+            units=self.n_hidden, 
+            dropout=self.p_rate,
+            return_sequences=True,
+        )(inputs)
+        x = keras.layers.LSTM(
+            units=self.n_hidden, 
+            dropout=self.p_rate,
+            return_sequences=False,
+        )(x)
         outputs = self.VI_output()(x)
         model = keras.Model(inputs=inputs, outputs=outputs)     
         return model
