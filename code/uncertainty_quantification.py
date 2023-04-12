@@ -30,5 +30,3 @@ def uncertainty_quantification(predictions: np.array) -> Tuple[np.array, np.arra
         aleatoric_list.append(aleatoric), epistemic_list.append(epistemic)
         upred_list.append(u_pred)
     return np.asarray(aleatoric_list), np.asarray(epistemic_list), np.asarray(upred_list)
-    
-    return np.array(epistemic_uc), np.std(predictions, axis=0)
